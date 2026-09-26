@@ -274,12 +274,47 @@ stop_clash() {
   fi
 }
 
+print_process_status() {
+  if ! command -v ps >/dev/null 2>&1; then
+    return
+  fi
+
+  local processes
+  processes="$(ps -eo pid=,ppid=,comm=,args= | awk '$3 == "clash" || $3 == "mihomo" || $0 ~ /\/(clash|mihomo)( |$)/ {print}')"
+
+  if [[ -n "$processes" ]]; then
+    echo
+    echo "运行中的 Clash/Mihomo 进程:"
+    echo "$processes"
+  else
+    echo
+    echo "未发现运行中的 Clash/Mihomo 进程。"
+  fi
+}
+
+print_port_status() {
+  if ! command -v ss >/dev/null 2>&1; then
+    return
+  fi
+
+  local ports
+  ports="$(ss -ltnp | awk 'NR == 1 || /:(7890|9090)[[:space:]]/')"
+
+  if [[ "$(echo "$ports" | wc -l)" -gt 1 ]]; then
+    echo
+    echo "默认 Clash 端口监听:"
+    echo "$ports"
+  fi
+}
+
 status_clash() {
   if command -v systemctl >/dev/null 2>&1 && [[ -f "$SERVICE_FILE" ]]; then
     systemctl --user --no-pager --lines=60 status clash.service || true
   else
     [[ -x "$CLASH_BIN" ]] && "$CLASH_BIN" -v || true
     echo "未配置 systemd 用户服务。配置目录: $CLASH_DIR"
+    print_process_status
+    print_port_status
   fi
 }
 
